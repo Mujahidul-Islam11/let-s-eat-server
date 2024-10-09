@@ -29,10 +29,23 @@ async function run() {
     // database collections
     const database = client.db("LetsEatDB");
     const menuCollection = database.collection("menu");
+    const favItemsCollection = database.collection("favItems"); // favorite items collection
 
     // crud operations
     app.get("/menu", async(req, res)=> {
         const result = await menuCollection.find().toArray();
+        res.send(result)
+    })
+
+
+    // favorites collection's operations
+    app.post("/favorites", async(req, res)=> {
+        const favItem = req.body;
+        const result = await favItemsCollection.insertOne(favItem);
+        res.send(result)
+    })
+    app.get("/favorites", async(req, res)=> {
+        const result = await favItemsCollection.find().toArray();
         res.send(result)
     })
 
@@ -50,5 +63,5 @@ res.send("Are hungry? let's eat.....")
 })
 
 app.listen(port, ()=>{
-    console.log(`Let's eat boss is running on ${port}`)
+    console.log(`Let's eat, boss is running on ${port}`)
 })
