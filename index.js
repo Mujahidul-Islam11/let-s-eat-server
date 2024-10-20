@@ -25,10 +25,11 @@ async function run() {
 
     // database collections
     const database = client.db("LetsEatDB");
+    const userCollection = database.collection("users");
     const menuCollection = database.collection("menu");
-    const favItemsCollection = database.collection("favItems"); // favorite items collection
+    const favItemsCollection = database.collection("favItems");
 
-    // crud operations
+    // menu collection's operations
     app.get("/menu", async (req, res) => {
       const result = await menuCollection.find().toArray();
       res.send(result);
@@ -40,6 +41,7 @@ async function run() {
       const result = await favItemsCollection.insertOne(favItem);
       res.send(result);
     });
+
     app.get("/favorites", async (req, res) => { 
       const email = req.query.email;
       const query = {email: email}
@@ -53,6 +55,13 @@ async function run() {
       const result = await favItemsCollection.deleteOne(query);
       res.send(result);
     });
+
+    // users collection's operations
+    app.post("/users", async(req, res) =>{
+      const user = req.body;
+      const result = await userCollection.insertOne(user);
+      res.send(result);
+    })
 
     await client.db("admin").command({ ping: 1 });
     console.log(
