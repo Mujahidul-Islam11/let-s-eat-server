@@ -78,6 +78,13 @@ async function run() {
       res.send(result);
     });
 
+    app.delete("/menu/admin/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await menuCollection.deleteOne(query);
+      res.send(result);
+    });
+
     // favorites collection's operations
     app.post("/favorites", async (req, res) => {
       const favItem = req.body;
