@@ -85,6 +85,25 @@ async function run() {
       res.send(result);
     });
 
+    app.patch("/menu/admin/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const item = req.body
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const updateDoc = {
+        $set: {
+          name: item.name,
+          img: item.img,
+          category: item.category,
+          price: item.price,
+          rating: 0,
+          desc: item.desc,
+          status: item.status
+        }
+      }
+      const result = await menuCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
+
     // favorites collection's operations
     app.post("/favorites", async (req, res) => {
       const favItem = req.body;
