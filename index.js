@@ -10,6 +10,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 app.use(cors());
 app.use(express.json());
 
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.u8ojnwq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -29,6 +30,8 @@ async function run() {
     const userCollection = database.collection("users");
     const menuCollection = database.collection("menu");
     const favItemsCollection = database.collection("favItems");
+    const paymentCollection = database.collection("payments");
+    
 
 
     // jwt related api
@@ -168,6 +171,34 @@ async function run() {
       }
       const result = await userCollection.updateOne(query, updateDoc);
       res.send(result);
+    })
+
+    // payment collection's operations
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+   
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: [
+          "card"
+        ]
+      });
+    
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      });
+    });
+
+    app.post("/payments", verifyToken, async(req, res)=>{
+      const paymentInfo = req.body;
+      const result = await paymentCollection.insertOne(paymentInfo);
+      
+      // delete item from favorites
+      const query = {_id: {$in: paymentInfo?.favIds?.map(id => new ObjectId(id))}};
+      const deletedResult = await favItemsCollection?.deleteMany(query)
+      res.send({result, deletedResult});
     })
 
     await client.db("admin").command({ ping: 1 });
