@@ -31,6 +31,7 @@ async function run() {
     const menuCollection = database.collection("menu");
     const favItemsCollection = database.collection("favItems");
     const paymentCollection = database.collection("payments");
+    const bookingsCollection = database.collection("bookings");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -217,19 +218,48 @@ async function run() {
     });
 
     // admin stats api
-    app.get("/admin-stats", verifyToken, verifyAdmin,async (req, res) => {
+    app.get("/admin-stats",verifyToken, verifyAdmin, async (req, res) => {
       const users = await userCollection.estimatedDocumentCount();
       const menuItems = await menuCollection.estimatedDocumentCount();
       const orders = await paymentCollection.estimatedDocumentCount();
-      const payments = await paymentCollection.find().toArray();
-      const revenue = payments?.reduce((total, item) => total + item.price, 0).toFixed(2);
+      // const payments = await paymentCollection.find().toArray();
+      // const revenue = payments?.reduce((total, item) => total + item.price, 0).toFixed(2);
+      const result = await paymentCollection?.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: "$price" },
+          },
+        },
+      ]).toArray();
+      const revenue = result.length > 0 ? result[0].totalRevenue.toFixed(2) : 0
       res.send({
         users,
         menuItems,
         orders,
-        revenue
+        revenue,
       });
     });
+    // table collection's apis
+    app.post("/bookings", async(req, res)=>{
+      const data = req.body;
+      const result = await bookingsCollection.insertOne(data);
+      res.send(result);
+    })
+
+    app.get("/bookings", async(req, res)=>{
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await bookingsCollection.find(query).toArray();
+      res.send(result);
+    })
+
+    app.delete("/bookings/:id", async(req, res)=>{
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await bookingsCollection.deleteOne(query);
+      res.send(result);
+    })
 
     await client.db("admin").command({ ping: 1 });
     console.log(
