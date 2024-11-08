@@ -23,7 +23,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // await client.connect();
+    await client.connect();
 
     // database collections
     const database = client.db("LetsEatDB");
@@ -207,6 +207,18 @@ async function run() {
       res.send({ result, deletedResult });
     });
 
+    app.patch("/payments/confirm/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set:{
+          status: "complete"
+        }
+      }
+      const result = await paymentCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
+
     app.get("/payments/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
@@ -217,22 +229,29 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/payments", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await paymentCollection.find().toArray();
+      res.send(result);
+    });
+
     // admin stats api
-    app.get("/admin-stats",verifyToken, verifyAdmin, async (req, res) => {
+    app.get("/admin-stats", verifyToken, verifyAdmin, async (req, res) => {
       const users = await userCollection.estimatedDocumentCount();
       const menuItems = await menuCollection.estimatedDocumentCount();
       const orders = await paymentCollection.estimatedDocumentCount();
       // const payments = await paymentCollection.find().toArray();
       // const revenue = payments?.reduce((total, item) => total + item.price, 0).toFixed(2);
-      const result = await paymentCollection?.aggregate([
-        {
-          $group: {
-            _id: null,
-            totalRevenue: { $sum: "$price" },
+      const result = await paymentCollection
+        ?.aggregate([
+          {
+            $group: {
+              _id: null,
+              totalRevenue: { $sum: "$price" },
+            },
           },
-        },
-      ]).toArray();
-      const revenue = result.length > 0 ? result[0].totalRevenue.toFixed(2) : 0
+        ])
+        .toArray();
+      const revenue = result.length > 0 ? result[0].totalRevenue.toFixed(2) : 0;
       res.send({
         users,
         menuItems,
@@ -241,30 +260,59 @@ async function run() {
       });
     });
     // table collection's apis
-    app.post("/bookings", verifyToken, async(req, res)=>{
+    app.post("/bookings", verifyToken, async (req, res) => {
       const data = req.body;
       const result = await bookingsCollection.insertOne(data);
       res.send(result);
-    })
+    });
 
-    app.get("/bookings",verifyToken, async(req, res)=>{
+    app.get("/bookings", verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
       const result = await bookingsCollection.find(query).toArray();
       res.send(result);
-    })
+    });
 
-    app.delete("/bookings/:id", verifyToken, async(req, res)=>{
+    app.get("/bookings/admin",verifyToken, verifyAdmin, async (req, res) => {
+      const result = await bookingsCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.delete("/bookings/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await bookingsCollection.deleteOne(query);
       res.send(result);
-    })
+    });
 
-    // await client.db("admin").command({ ping: 1 });
-    // console.log(
-    //   "Pinged your deployment. You successfully connected to MongoDB!"
-    // );
+    app.patch("/bookings/confirm/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set:{
+          status: "confirmed"
+        }
+      }
+      const result = await bookingsCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
+
+    app.patch("/bookings/cancel/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set:{
+          status: "canceled"
+        }
+      }
+      const result = await bookingsCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
+
+    await client.db("admin").command({ ping: 1 });
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
   } finally {
     // await client.close();
   }
